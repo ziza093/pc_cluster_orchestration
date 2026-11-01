@@ -1,0 +1,9 @@
+#python venv
+/venv/
+
+#python cache
+/__pycache__/
+
+#grpc generated files
+/main_pb2.py
+/main_pb2_grpc.py
