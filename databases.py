@@ -4,10 +4,6 @@ import redis
 import time
 import os
 
-
-
-
-
 class MariaDB:
     """Custom MariaDB database"""
     def __init__(self):
@@ -31,7 +27,7 @@ class MariaDB:
                     cursorclass=pymysql.cursors.DictCursor #queries return dict instead of tuple
                 )
         except pymysql.Error as e:
-            pass
+            print(f"Couldnt connect to database!\n{e}")
 
     def disconnect(self) -> None:
         """Terminate the MariaDB database connection"""
@@ -41,7 +37,7 @@ class MariaDB:
         """Execute a query to find the account with this specific 'username'"""
 
         if self.connection is None:
-            raise("No open database connection when trying to query!")
+            raise ConnectionError("No open database connection when trying to query!")
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute(
