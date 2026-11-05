@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#activate the env
+source env/bin/activate
+
 #generate the mandatory JWT_SECRET if it doesnt exist
 if [[ "$JWT_SECRET" == "" ]]; then
     echo "JWT_SECRET doesnt exist. Creating a new one..."

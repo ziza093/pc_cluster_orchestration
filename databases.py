@@ -55,6 +55,25 @@ class MariaDB:
 
         return user
 
+    def query_all_accounts(self):
+        """Executes a query to extract all the accounts"""
+
+        if self.connection is None:
+            raise ConnectionError("No open database connection when trying to query!")
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT * FROM users
+                    """
+                    )
+                users = cursor.fetchall()
+        except pymysql.Error as e:
+            print(f"Error while querying the db: {e}")
+
+        return users
+
+
 class Redis:
     def __init__(self):
         self.host = os.getenv("REDIS_HOST")
