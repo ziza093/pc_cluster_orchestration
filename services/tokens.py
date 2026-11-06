@@ -15,9 +15,8 @@ JWT_ISSUER = os.getenv("JWT_ISSUER")
 JWT_SECRET = os.getenv("JWT_SECRET")
 JWT_LIFETIME_SECONDS = 3600
 
-
-class Authentication:
-    """Authentication service"""
+class TokenManager:
+    """TokenManager service"""
     def __init__(self):
         pass
 

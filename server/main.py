@@ -1,26 +1,21 @@
 import grpc
 from concurrent import futures
-import main_pb2
-import main_pb2_grpc
+from proto import main_pb2
+from proto import main_pb2_grpc
 import logging
 import uuid
-
-import databases as db
-from auth_service import auth
-from login_service.login import LoginUser
-from login_service.listAccounts import ListUserAccounts
-
+from services.servicer import IdmServicer
+from services import tokens 
 
 class LoginService(main_pb2_grpc.LoginServicer):
     def __init__(self):    
-        self.loginUser = LoginUser()
-        self.listUserAccounts = ListUserAccounts()
+        self.idmServicer = IdmServicer()
 
     def Login(self, request, context):
-        return self.loginUser.login(request, context)
+        return self.idmServicer.auth(request, context)
 
     def ListAccounts(self, request, context):
-         return self.listUserAccounts.listAccounts(request, context)
+         return self.idmServicer.listAccounts(request, context)
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=3))
@@ -39,7 +34,7 @@ def serve():
 
 if __name__ == "__main__":
 
-    if not auth.JWT_SECRET:
+    if not tokens.JWT_SECRET:
             raise SystemExit(
                 "Create JWT_SECRET to be able to start."
             )
