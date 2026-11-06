@@ -60,8 +60,8 @@ else
     fi
 fi
 
-#start the server
-python server.py
+#start the server (-m is module flag so it solves the paths correctly)
+python -m server.main
 
 # echo "To compile specify the word 'compile' as the 1st argument and the '.proto' file as the 2nd argument"
 # echo "Ex: ./server.sh compile main.proto"
@@ -84,7 +84,7 @@ python server.py
 #     fi
 
 #     if [[ $? -eq 0 ]]; then
-#         python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. "$proto_file"
+#         python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. proto/"$proto_file"
 #         if [[ $? -eq 0 ]]; then
 #             echo "Compiled succesfully!"
 #         fi

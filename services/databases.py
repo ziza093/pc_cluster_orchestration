@@ -87,3 +87,13 @@ class Redis:
                 port=self.port,
                 db=0,
                 decode_responses=True)
+
+
+    def get(self, key: str) -> (bytes | str | None): 
+        return self.instance.get(key)
+
+    def exists(self, key:str) -> bool:
+        return bool(self.instance.exists(key))
+
+    def set(self, key:str, value:str, ex:int = None):
+        self.instance.set(key, value, ex=ex)
