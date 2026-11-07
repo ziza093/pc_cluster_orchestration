@@ -73,6 +73,24 @@ class MariaDB:
 
         return users
 
+    def query_create_account(self, role:str, username:str, uid:bytes) -> bool:
+        """Executes a query to create an account"""
+        if self.connection is None:
+            raise ConnectionError("No open database connection when trying to query!")
+
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO users(uid, username, password, role, is_active) VALUES (%s, %s, NULL, %s, FALSE)
+                    """,
+                    (uid, username, role)
+                )
+        except pymysql.Error as e:
+            print(f"Error while inserting into table! {e}")
+            return False
+
+        return True
 
 class Redis:
     def __init__(self):

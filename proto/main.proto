@@ -1,9 +1,8 @@
 syntax = "proto3";
 
-
 enum Role {
-    ROLE_ADMIN = 0;
-    ROLE_MAINTAINER = 1;
+    administrator = 0;
+    maintainer = 1;
 }
 
 message LoginRequest {

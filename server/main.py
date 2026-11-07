@@ -17,6 +17,9 @@ class LoginService(main_pb2_grpc.LoginServicer):
     def ListAccounts(self, request, context):
          return self.idmServicer.listAccounts(request, context)
 
+    def CreateAccount(self, request, context):
+         return self.idmServicer.createAccount(request, context)
+
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=3))
     main_pb2_grpc.add_LoginServicer_to_server(LoginService(), server)
