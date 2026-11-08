@@ -90,6 +90,7 @@ class MariaDB:
             print(f"Error while inserting into table! {e}")
             return False
 
+        self.connection.commit()
         return True
 
 class Redis:
