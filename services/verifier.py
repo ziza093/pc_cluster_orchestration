@@ -46,9 +46,9 @@ class Verify:
 
 
 
-    def verify_mariadb_query_login(self, username: str) -> dict[str, any]:
+    def verify_mariadb_query_user(self, username: str) -> dict[str, any]:
         try:
-            user = self.mariadb_client.query_login(username=username)
+            user = self.mariadb_client.query_user(username=username)
         except Exception as e:
             print(f"Error: {e}")
         

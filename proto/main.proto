@@ -27,7 +27,8 @@ message ValidationRequest {
 
 message ValidationTokenResponse {
     bool valid = 1;
-    UserInfo user = 2;
+    string id = 2;
+    Role role = 3;
 }
 
 message ListAccountsRequest {

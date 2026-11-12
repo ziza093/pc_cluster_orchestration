@@ -47,7 +47,7 @@ class MariaDB:
         """Terminate the MariaDB database connection"""
         self.connection.close()
 
-    def query_login(self, username: str) -> dict | None:
+    def query_user(self, username: str) -> dict | None:
         """Execute a query to find the account with this specific 'username'"""
 
         if self.connection is None:

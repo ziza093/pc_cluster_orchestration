@@ -108,7 +108,7 @@ class TokenManager:
             return False
 
     def hash_password(self, password:str) -> str:
-        """Hash a password using bcrypt"""
+        """Hash a password using bcrypt"""  
 
         salt = bcrypt.gensalt(rounds=12)
         password_hash = bcrypt.hashpw(password.encode("utf-8"), salt)

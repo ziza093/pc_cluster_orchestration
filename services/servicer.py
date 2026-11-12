@@ -1,11 +1,16 @@
 import grpc
 import uuid
+from enum import Enum
+
 from proto import main_pb2
 from services import databases as db
 from services import tokens
 from services import verifier
 
-
+ROLES = {
+    "administrator": main_pb2.administrator,
+    "maintainer": main_pb2.maintainer
+}
 
 class IdmServicer:
     def __init__(self):
@@ -21,7 +26,7 @@ class IdmServicer:
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Incorrect request!")
 
         
-        user = self.verifier.verify_mariadb_query_login(username)
+        user = self.verifier.verify_mariadb_query_user(username)
 
         if user is None:
             context.abort(grpc.StatusCode.NOT_FOUND, "No account found with that username!")
@@ -160,7 +165,7 @@ class IdmServicer:
         if not token or not username:
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid request!")
 
-        user = self.verifier.verify_mariadb_query_login(username)
+        user = self.verifier.verify_mariadb_query_user(username)
 
         if not user["role"] == "administrator":
             context.abort(grpc.StatusCode.PERMISSION_DENIED, "Only administrators can deactivate accounts!")
@@ -192,7 +197,7 @@ class IdmServicer:
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid request!")
 
         try:
-            user = self.verifier.mariadb_client.query_login(username=username)
+            user = self.verifier.mariadb_client.query_user(username=username)
         except Exception as e:
             print(f"Error: Couldnt find user {e}")
 
@@ -236,7 +241,22 @@ class IdmServicer:
         if not payload:
             context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid or expired access token!")
 
-        #adauga return
+        try:
+            sub = payload["sub"]
+            role = payload["role"]
+        except Exception as e:
+            print(f"Error when trying to extract sub/role from payload! | cause {e.__cause__}")
+            return main_pb2.ValidationTokenResponse(
+                valid=False,
+                id=None,
+                role=None
+            )
+
+        return main_pb2.ValidationTokenResponse(
+            valid=True,
+            id=sub,
+            role=ROLES[role]
+        )
         
 
     def destroyToken(self, request, context) -> main_pb2.OperationResponse:
@@ -251,9 +271,21 @@ class IdmServicer:
             payload = self.verifier.tokenManager.validate_jwt(token)
         except Exception as e:
             print(f"JWT token error: {e} | cause: {e.__cause__}")
-            self.verifier.redis_client.set(token, "blacklisted", 3600)
+            
 
         if not payload:
             context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid or expired access token!")
 
+        try:
+            destroyed = self.verifier.destroy_jwt_token(token)
+        except Exception as e:
+            print(f"Error: {e} | cause: {e.__cause__}")
+
         #adauga return
+        return main_pb2.OperationResponse(
+            success=True,
+            message="Token destroyed successfully!"
+        ) if destroyed else main_pb2.OperationResponse(
+            success=False,
+            message="Couldn't destroy token!"
+        )
