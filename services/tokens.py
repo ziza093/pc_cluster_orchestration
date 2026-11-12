@@ -59,7 +59,7 @@ class TokenManager:
         return f"{header_part}.{payload_part}.{self.b64url_encode(signature)}"
 
 
-    def verify_jwt(self, token: str) -> dict:
+    def validate_jwt(self, token: str) -> dict:
         """
         Verify the JWT signature and standard claims.
         Recomputing the signature over header.payload means edits to role/sub/etc.
@@ -106,3 +106,10 @@ class TokenManager:
             return bcrypt.checkpw(password.encode("utf-8"), stored_hash)
         except (ValueError, TypeError):
             return False
+
+    def hash_password(self, password:str) -> str:
+        """Hash a password using bcrypt"""
+
+        salt = bcrypt.gensalt(rounds=12)
+        password_hash = bcrypt.hashpw(password.encode("utf-8"), salt)
+        return password_hash.decode("utf-8")

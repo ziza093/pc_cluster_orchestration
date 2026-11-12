@@ -3,52 +3,34 @@ import uuid
 from proto import main_pb2
 from services import databases as db
 from services import tokens
+from services import verifier
 
 
 
 class IdmServicer:
     def __init__(self):
-        self.mariadb_client = db.MariaDB()
-        self.tokenManager = tokens.TokenManager()
-        self.redis_client = db.Redis()
-
-        try:
-            self.mariadb_client.connect()
-        except Exception as e:
-            print(f"MariaDB connection error: {e}")
-
-        try:
-            self.redis_client.connect()
-        except Exception as e:
-            print(f"Redis connection error: {e}")
-
+        self.verifier = verifier.Verify()
+        self.verifier.verify_mariadb_connection()
+        self.verifier.verify_redis_connection()
 
     def auth(self, request, context) -> main_pb2.TokenResponse:
         username = request.username.strip()
         password = request.password
-        
-        if not username or not password:
-            context.abort(grpc.StatusCode.UNAUTHENTICATED,
-                            "Insert both an username and password!")
 
-        try:
-            user = self.mariadb_client.query_login(username=username)
-        except Exception as e:
-            print(f"Error: {e}")
-            context.abort(grpc.StatusCode.INTERNAL,
-                            "Couldnt find an account with that username!")
+        if not username or not password:
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Incorrect request!")
+
+        
+        user = self.verifier.verify_mariadb_query_login(username)
 
         if user is None:
-            context.abort(grpc.StatusCode.UNAUTHENTICATED,
-                            "No account found with that username!")
-
+            context.abort(grpc.StatusCode.NOT_FOUND, "No account found with that username!")
+        
         if not bool(user["is_active"]):
-            context.abort(grpc.StatusCode.PERMISSION_DENIED,
-                            "Inactive account!")
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Inactive account!")
 
-        if not self.tokenManager.verify_password(password, user["password"]):
-            context.abort(grpc.StatusCode.UNAUTHENTICATED,
-                            "Incorrect password!")
+        if not self.verifier.tokenManager.verify_password(password, user["password"]):
+            context.abort(grpc.StatusCode.UNAUTHENTICATED, "Incorrect password!")
 
         uid_value = user["uid"]
         if isinstance(uid_value, (bytes, bytearray, memoryview)):
@@ -57,10 +39,10 @@ class IdmServicer:
             uid = str(uuid.UUID(str(uid_value)))
 
         role = user["role"]
-        try:
-            token = self.tokenManager.create_jwt(uid, role)
-        except RuntimeError:
-            print("JWT_SECRET not configured.")
+
+        token = self.verifier.create_jwt_token(uid, role)
+
+        if not token:
             context.abort(grpc.StatusCode.INTERNAL,
                             "Something went wrong...")
 
@@ -71,32 +53,36 @@ class IdmServicer:
         token = request.access_token
 
         if not token:
-            context.abort(grpc.StatusCode.ABORTED, "No access token!")
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid request!")
 
         try:
-            if self.redis_client.get(token):
-                context.abort(grpc.StatusCode.PERMISSION_DENIED, "Account is blacklisted!")
+            blacklisted = self.verifier.redis_client.get(token)
         except Exception as e:
             print(f"Redis error: account blacklisted! {e}")
 
+        if blacklisted:
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Account is blacklisted!")
+
+        payload=None
         try:
-            payload = self.tokenManager.verify_jwt(token)
+            payload = self.verifier.tokenManager.validate_jwt(token)
         except Exception as e:
-            print(f"Invalid JWT: {e}")
-            self.redis_client.set(token, "blacklisted", ex=3600)
+            print(f"Invalid JWT: {e} || cause: {e.__cause__}")  #aparent cause arata raise-ul din apel 
+            self.verifier.redis_client.set(token, "blacklisted", ex=3600)
+
+        if not payload:
             context.abort(grpc.StatusCode.PERMISSION_DENIED, "Invalid or expired access token!")
 
         if payload.get("role") != "administrator":
             context.abort(grpc.StatusCode.PERMISSION_DENIED, "Only administrator accounts can use this feature!")
 
         try:
-            users_data = self.mariadb_client.query_all_accounts()
+            users_data = self.verifier.mariadb_client.query_all_accounts()
         except Exception as e:
             print(f"Error: {e}")
-            context.abort(grpc.StatusCode.INTERNAL, "Could not get the accounts from the database!")
 
         if not users_data:
-            users_data = []
+            context.abort(grpc.StatusCode.INTERNAL, "Could not get the accounts from the database!")
 
 
         for user in users_data:
@@ -128,20 +114,24 @@ class IdmServicer:
 
         print(f"toke: {token}, username: {username}, role:{role}")
         if not token or not username or not role:
-            context.abort(grpc.StatusCode.ABORTED, "Incorrect request!")
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Incorrect request!")
 
         try:
-            if self.redis_client.get(token):
-                context.abort(grpc.StatusCode.PERMISSION_DENIED, "Account is blacklisted!")
+            blacklisted = self.verifier.redis_client.get(token)
         except Exception as e:
             print(f"Redis error: account blacklisted {e}")
 
+        if blacklisted:
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Account is blacklisted!")
+        
         try:
-            payload = self.tokenManager.verify_jwt(token)
+            payload = self.verifier.tokenManager.validate_jwt(token)
         except Exception as e:
             print(f"JWT token error: {e}")
-            self.redis_client.set(token, "blacklisted", 3600)
-            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Invalid or expired access token!")
+            self.verifier.redis_client.set(token, "blacklisted", 3600)
+
+        if not payload:
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Invalid access token!")
             
         if payload.get("role") != "administrator":
             context.abort(grpc.StatusCode.PERMISSION_DENIED, "Only administrator accounts can use this feature!")
@@ -150,24 +140,120 @@ class IdmServicer:
         uid_bytes = uid.bytes
 
         try:
-            success=self.mariadb_client.query_create_account(role=role, username=username, uid=uid_bytes)
+            success=self.verifier.mariadb_client.query_create_account(role=role, username=username, uid=uid_bytes)
         except Exception as e:
             print(f"Error: {e}")
         
         
         return main_pb2.OperationResponse(
+                    success=True,
+                    message="Account created successfully!"
+                ) if success else main_pb2.OperationResponse(
+                                    success=False,
+                                    message="Couldn't create account!"
+                                )  
+
+    def deactivateAccount(self, request, context) -> main_pb2.OperationResponse:
+        token = request.access_token
+        username = request.username
+
+        if not token or not username:
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid request!")
+
+        user = self.verifier.verify_mariadb_query_login(username)
+
+        if not user["role"] == "administrator":
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Only administrators can deactivate accounts!")
+
+        payload=None
+        try:
+            payload = self.verifier.tokenManager.validate_jwt(token)
+        except Exception as e:
+            print(f"JWT token error: {e}")
+            self.verifier.redis_client.set(token, "blacklisted", 3600)
+
+        if not payload:
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Account blacklisted!")
+
+        changed = self.verifier.mariadb_client.query_change_account_status(username, False)        
+        return main_pb2.OperationResponse(
+            success=True,
+            message="Account deactivate successfully"
+        ) if changed else main_pb2.OperationResponse(
             success=False,
-            message="Couldn't create account!"
-        ) if success else main_pb2.OperationResponse(
-                            success=True,
-                            message="Account created successfully!"
-                        )
+            message="Couldn't deactivate account!"
+        )
 
-    def deactivateAccount(self):
-        pass
+    def activateAccount(self, request, context) -> main_pb2.OperationResponse:
+        username = request.username
+        password = request.password
 
-    def activateAccount(self):
-        pass
+        if not username or not password:
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid request!")
 
-    def token(self):
-        pass
+        try:
+            user = self.verifier.mariadb_client.query_login(username=username)
+        except Exception as e:
+            print(f"Error: Couldnt find user {e}")
+
+        if user["is_active"]:
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Account already active!")
+
+        if user["password"] is not None:
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Account already has a password")
+
+        hashed_password = self.verifier.tokenManager.hash_password(password)
+
+        try:
+            success = self.verifier.mariadb_client.query_update_password(username=username, password=hashed_password)
+        except Exception as e:
+            print(f"Error: couldnt update password {e}")
+
+        if not success:
+            return main_pb2.OperationResponse(
+                  success=False,
+                  message="Password couldnt be updated!"
+              )      
+        
+        return main_pb2.OperationResponse(
+            success=True,
+            message="Password updated successfully!"
+        )
+
+    def validateToken(self, request, context) -> main_pb2.ValidationTokenResponse:
+        token = request.access_token
+
+        if not token:
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid request!")
+
+        payload=None
+        try:
+            payload = self.verifier.tokenManager.validate_jwt(token)
+        except Exception as e:
+            print(f"JWT token error: {e} | cause: {e.__cause__}")
+            self.verifier.redis_client.set(token, "blacklisted", 3600)
+
+        if not payload:
+            context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid or expired access token!")
+
+        #adauga return
+        
+
+    def destroyToken(self, request, context) -> main_pb2.OperationResponse:
+        token = request.access_token
+
+        if not token:
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid request!")
+
+
+        payload=None
+        try:
+            payload = self.verifier.tokenManager.validate_jwt(token)
+        except Exception as e:
+            print(f"JWT token error: {e} | cause: {e.__cause__}")
+            self.verifier.redis_client.set(token, "blacklisted", 3600)
+
+        if not payload:
+            context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid or expired access token!")
+
+        #adauga return
