@@ -8,6 +8,7 @@ from services import tokens
 from services import verifier
 
 ROLES = {
+    "unknown": main_pb2.unknown,
     "administrator": main_pb2.administrator,
     "maintainer": main_pb2.maintainer
 }
@@ -15,10 +16,10 @@ ROLES = {
 class IdmServicer:
     def __init__(self):
         self.verifier = verifier.Verify()
-        self.verifier.verify_mariadb_connection()
-        self.verifier.verify_redis_connection()
 
     def auth(self, request, context) -> main_pb2.TokenResponse:
+        self.verifier.verify_mariadb_connection()
+        
         username = request.username.strip()
         password = request.password
 
@@ -54,6 +55,8 @@ class IdmServicer:
         return main_pb2.TokenResponse(token_value=token)
 
     def listAccounts(self, request, context) -> main_pb2.ListAccountsResponse:
+        self.verifier.verify_mariadb_connection()
+        self.verifier.verify_redis_connection()
         response = main_pb2.ListAccountsResponse()
         token = request.access_token
 
@@ -72,13 +75,13 @@ class IdmServicer:
         try:
             payload = self.verifier.tokenManager.validate_jwt(token)
         except Exception as e:
-            print(f"Invalid JWT: {e} || cause: {e.__cause__}")  #aparent cause arata raise-ul din apel 
+            print(f"Invalid JWT: {e} || cause: {e.__cause__}")  #apparently 'cause' shows the raise from the call 
             self.verifier.redis_client.set(token, "blacklisted", ex=3600)
 
         if not payload:
             context.abort(grpc.StatusCode.PERMISSION_DENIED, "Invalid or expired access token!")
 
-        if payload.get("role") != "administrator":
+        if payload["role"] != "administrator":
             context.abort(grpc.StatusCode.PERMISSION_DENIED, "Only administrator accounts can use this feature!")
 
         try:
@@ -105,19 +108,19 @@ class IdmServicer:
             user_info.is_active = bool(user["is_active"])
 
             db_role = user["role"]
-            if db_role == "administrator" or db_role==0:
-                user_info.role = main_pb2.administrator
-            else:
-                user_info.role = main_pb2.maintainer
+            # user_info.role = ROLES[db_role]
+            user_info.role = db_role
 
         return response
 
     def createAccount(self, request, context) -> main_pb2.OperationResponse:
+        self.verifier.verify_mariadb_connection()
+        self.verifier.verify_redis_connection()
+
         token = request.access_token
         username = request.username
         role = request.role
 
-        print(f"toke: {token}, username: {username}, role:{role}")
         if not token or not username or not role:
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Incorrect request!")
 
@@ -138,13 +141,15 @@ class IdmServicer:
         if not payload:
             context.abort(grpc.StatusCode.PERMISSION_DENIED, "Invalid access token!")
             
-        if payload.get("role") != "administrator":
+        if payload["role"] != "administrator":
             context.abort(grpc.StatusCode.PERMISSION_DENIED, "Only administrator accounts can use this feature!")
 
         uid = uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4()
         uid_bytes = uid.bytes
-
+        
+        success = False
         try:
+            # role = ROLES[role]
             success=self.verifier.mariadb_client.query_create_account(role=role, username=username, uid=uid_bytes)
         except Exception as e:
             print(f"Error: {e}")
@@ -159,6 +164,9 @@ class IdmServicer:
                                 )  
 
     def deactivateAccount(self, request, context) -> main_pb2.OperationResponse:
+        self.verifier.verify_mariadb_connection()
+        self.verifier.verify_redis_connection()
+
         token = request.access_token
         username = request.username
 
@@ -167,8 +175,8 @@ class IdmServicer:
 
         user = self.verifier.verify_mariadb_query_user(username)
 
-        if not user["role"] == "administrator":
-            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Only administrators can deactivate accounts!")
+        if not user:
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "No account found!")
 
         payload=None
         try:
@@ -177,8 +185,11 @@ class IdmServicer:
             print(f"JWT token error: {e}")
             self.verifier.redis_client.set(token, "blacklisted", 3600)
 
-        if not payload:
+        if self.verifier.redis_client.get(token):
             context.abort(grpc.StatusCode.PERMISSION_DENIED, "Account blacklisted!")
+
+        if not payload["role"] == "administrator":
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Only admins can deactivate accounts!")
 
         changed = self.verifier.mariadb_client.query_change_account_status(username, False)        
         return main_pb2.OperationResponse(
@@ -190,6 +201,8 @@ class IdmServicer:
         )
 
     def activateAccount(self, request, context) -> main_pb2.OperationResponse:
+        self.verifier.verify_mariadb_connection()
+        
         username = request.username
         password = request.password
 
@@ -226,6 +239,7 @@ class IdmServicer:
         )
 
     def validateToken(self, request, context) -> main_pb2.ValidationTokenResponse:
+        self.verifier.verify_redis_connection()
         token = request.access_token
 
         if not token:
@@ -240,6 +254,13 @@ class IdmServicer:
 
         if not payload:
             context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid or expired access token!")
+
+        try:
+            if self.verifier.redis_client.get(token):
+                context.abort(grpc.StatusCode.UNAUTHENTICATED, "Account blacklisted!")
+        except Exception as e:
+            print(f"Error: {e} | cause: {e.__cause__}")
+
 
         try:
             sub = payload["sub"]
@@ -260,6 +281,7 @@ class IdmServicer:
         
 
     def destroyToken(self, request, context) -> main_pb2.OperationResponse:
+        self.verifier.verify_redis_connection()
         token = request.access_token
 
         if not token:

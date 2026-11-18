@@ -90,7 +90,6 @@ class MariaDB:
        
         if self.connection is None:
             raise ConnectionError("No open database connection when trying to query!")
-
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute(

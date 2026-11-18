@@ -2,8 +2,6 @@ import grpc
 import logging
 import uuid
 
-from grpc_reflection.v1alpha import reflection
-
 from proto import main_pb2
 from concurrent import futures
 from proto import main_pb2_grpc
@@ -38,15 +36,6 @@ class LoginService(main_pb2_grpc.LoginServicer):
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=3))
     main_pb2_grpc.add_LoginServicer_to_server(LoginService(), server)
-
-
-    #added this for automatically "importing" the proto file 
-    # in insomnia for debugging purposes
-    SERVICE_NAMES = (
-        main_pb2.DESCRIPTOR.services_by_name["Login"].full_name,
-        reflection.SERVICE_NAME
-    )
-    reflection.enable_server_reflection(SERVICE_NAMES, server)
 
     server.add_insecure_port("[::]:50051")
     server.start()
