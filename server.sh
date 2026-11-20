@@ -60,6 +60,59 @@ else
     fi
 fi
 
+
+
+create_redis_docker_container() {
+    echo "Creating redis-server docker..."
+    # echo "sudo docker run -d \
+    #     --name redis-server \
+    #     --restart unless-stopped \
+    #     -e MARIADB_USER="$DB_USER"
+    #     -e MARIADB_ROOT_PASSWORD="$DB_ROOT_PASSWORD"
+    #     -e MARIADB_DATABASE="$DB_NAME"
+    #     -e MARIADB_PASSWORD="$DB_PASSWORD"
+    #     -p 127.0.0.1:"$DB_PORT":3306 \
+    #     -v mariadb_data:/var/lib/mysql \ 
+    #     mariadb:latest"
+    
+    sudo docker run -d \
+        --name redis-server \
+        --restart unless-stopped \        
+        -p 127.0.0.1:6379:6379 \
+        -v redis_data:/var/lib/mysql \
+        redis:latest \
+        redis-server --appendonly yes
+}
+
+
+
+
+# check if there is a redis-server docker container
+if ! sudo docker ps -a | grep -i redis-server; then
+    echo "No redis-server docker container found"
+    echo "Creating a redis-server docker container..."
+
+    if create_redis_docker_container; then
+        echo "redis-server created successfully!"
+    else
+        echo "something went wrong when creating the redis-server container..."
+    fi
+else
+    echo "redis-server docker container found"
+    #check if its running 
+    if ! sudo docker ps | grep -i redis-server; then 
+        echo "container is stopped."
+        echo "Starting redis-server..."
+        sudo docker start redis-server
+    fi
+
+    if sudo docker start redis-server; then
+        echo "redis-server started successfully!"
+    fi
+fi
+
+
+
 #start the server (-m is module flag so it solves the paths correctly)
 python -m server.main
 
@@ -90,5 +143,3 @@ python -m server.main
 #         fi
 #     fi
 # fi
-
-

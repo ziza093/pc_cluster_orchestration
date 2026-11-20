@@ -29,11 +29,25 @@ class MariaDB:
         except pymysql.Error as e:
             print(f"Couldnt connect to database!\n{e}")
 
+
+    def connected(self) -> bool:
+        """Returns boolean value (True/False) if the database connection is established"""
+        if not self.connection:
+            return False
+        try:
+            self.connection.ping(reconnect=False)
+        except pymysql.Error as e:
+            print(e)
+            return False
+        return True
+
+
+
     def disconnect(self) -> None:
         """Terminate the MariaDB database connection"""
         self.connection.close()
 
-    def query_login(self, username: str) -> None | dict[str, any]:
+    def query_user(self, username: str) -> dict | None:
         """Execute a query to find the account with this specific 'username'"""
 
         if self.connection is None:
@@ -49,11 +63,9 @@ class MariaDB:
                     """,
                     (username,),
                 )
-                user = cursor.fetchone()
+                return cursor.fetchone()
         except pymysql.Error as e:
             print(f"Error while querying the db: {e}")
-
-        return user
 
     def query_all_accounts(self):
         """Executes a query to extract all the accounts"""
@@ -73,27 +85,99 @@ class MariaDB:
 
         return users
 
+    def query_create_account(self, role:str, username:str, uid:bytes) -> bool:
+        """Executes a query to create an account"""
+       
+        if self.connection is None:
+            raise ConnectionError("No open database connection when trying to query!")
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO users(uid, username, password, role, is_active) VALUES (%s, %s, NULL, %s, FALSE)
+                    """,
+                    (uid, username, role)
+                )
+        except pymysql.Error as e:
+            print(f"Error while inserting into table! {e}")
+            return False
+
+        self.connection.commit()
+        return True
+    
+
+    def query_update_password(self, username:str, password:str) -> bool:
+        """Executes query to create/update password"""
+
+        if self.connection is None:
+            raise ConnectionError("No open database connection when trying to query!")
+
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE users SET password=%s, is_active=True WHERE username=%s
+                    """,
+                    (password, username)
+                )
+        except pymysql.Error as e:
+            print(f"Error while inserting into table! {e}")
+            return False
+
+        self.connection.commit()
+        return True
+
+    def query_change_account_status(self, username:str, state:bool) -> bool:
+        """Executes query to activate/deactivate account (set is_active to True/False)"""
+        if self.connection is None:
+            raise ConnectionError("No open database connection when trying to query!")
+        
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE users SET is_active=%s WHERE username=%s
+                    """,
+                    (state, username)
+                )
+        except pymysql.Error as e:
+            print(f"Error while inserting into table! {e}")
+            return False
+
+        self.connection.commit()
+        return True
+    
 
 class Redis:
     def __init__(self):
         self.host = os.getenv("REDIS_HOST")
         self.port = int(os.getenv("REDIS_PORT"))
-        self.instance = None
+        self.connection = None
 
     def connect(self):
-        if self.instance is None:
-            self.instance = redis.Redis(
+        if self.connection is None:
+            self.connection = redis.Redis(
                 host=self.host,
                 port=self.port,
                 db=0,
                 decode_responses=True)
 
 
+    def connected(self) -> bool:
+        """Returns boolean value (True/False) if the database connection is established"""
+        if self.connection is None:
+            return False
+        
+        try:
+            self.connection.ping()
+        except redis.ConnectionError :
+            return False
+
     def get(self, key: str) -> (bytes | str | None): 
-        return self.instance.get(key)
+        return self.connection.get(key)
 
     def exists(self, key:str) -> bool:
-        return bool(self.instance.exists(key))
+        return bool(self.connection.exists(key))
 
     def set(self, key:str, value:str, ex:int = None):
-        self.instance.set(key, value, ex=ex)
+        self.connection.set(key, value, ex=ex)

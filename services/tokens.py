@@ -21,13 +21,30 @@ class TokenManager:
         pass
 
     def b64url_encode(self, data: bytes) -> str:
-        """Base64 URL-safe encoding without '=' padding, as required by JWT."""
-        return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
-
+        """Base64 encoding without padding, as specified in RFC7515."""        
+        s = base64.urlsafe_b64encode(data)
+        s = s.rstrip(b"=") #remove any trailing '=', the "+,/" are removed inside the urlsafe_b64encode() method
+        return s.decode("ascii");
+    
 
     def b64url_decode(self, value: str) -> bytes:
         """Decode Base64Url data, restoring omitted padding."""
-        return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+        
+        match (len(value) % 4): # Pad with trailing '='
+            case 0: 
+                pass # No pad chars in this case
+            
+            case 1:
+                raise ValueError("Malphormed input!")
+            case 2: 
+                value += "==" # Two pad chars
+
+            case 3:
+                value += "=" # One pad char
+            case _:
+                raise ValueError("Illegal base64url length!")
+        
+        return base64.urlsafe_b64decode(value)
 
 
     def create_jwt(self, uid: str, role: str) -> str:
@@ -36,7 +53,12 @@ class TokenManager:
             raise RuntimeError("JWT_SECRET not configured.")
 
         now = int(time.time())
-        header = {"alg": "HS256", "typ": "JWT"}
+        
+        header = {
+            "typ": "JWT",
+            "alg": "HS256"
+        }
+
         payload = {
             "iss": JWT_ISSUER,
             "sub": uid,
@@ -46,20 +68,20 @@ class TokenManager:
         }
 
         header_part = self.b64url_encode(
-            json.dumps(header, separators=(",", ":"), sort_keys=True).encode("utf-8")
+            json.dumps(header).encode("utf-8")
         )
         payload_part = self.b64url_encode(
-            json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+            json.dumps(payload).encode("utf-8")
         )
 
+        #BASE64URL(UTF8(JWS Protected Header)) || '.' || BASE64URL(JWS Payload); JWS Payload doesnt have UTF8 encoding here, but i'm treating it as implied
         signing_input = f"{header_part}.{payload_part}".encode("ascii")
-        signature = hmac.new(
-            JWT_SECRET.encode("utf-8"), signing_input, hashlib.sha256
-        ).digest()
+        signature = hmac.new(JWT_SECRET.encode("utf-8"), signing_input, hashlib.sha256).digest()
+        
         return f"{header_part}.{payload_part}.{self.b64url_encode(signature)}"
 
 
-    def verify_jwt(self, token: str) -> dict:
+    def validate_jwt(self, token: str) -> dict:
         """
         Verify the JWT signature and standard claims.
         Recomputing the signature over header.payload means edits to role/sub/etc.
@@ -67,6 +89,9 @@ class TokenManager:
         """
         if not JWT_SECRET:
             raise RuntimeError("JWT_SECRET not configured.")
+
+        if not token.find("."):
+            raise ValueError("Invalid token!")
 
         try:
             header_part, payload_part, signature_part = token.split(".")
@@ -82,22 +107,23 @@ class TokenManager:
             header = json.loads(self.b64url_decode(header_part))
             payload = json.loads(self.b64url_decode(payload_part))
 
-            if header.get("alg") != "HS256" or header.get("typ") != "JWT":
+            if header["alg"] != "HS256" or header["typ"] != "JWT":
                 raise ValueError("Invalid JWT header!")
-            if payload.get("iss") != JWT_ISSUER:
+            if payload["iss"] != JWT_ISSUER:
                 raise ValueError("Invalid JWT issuer!")
-            if not isinstance(payload.get("exp"), int) or payload["exp"] <= int(time.time()):
+            if not isinstance(payload["exp"], int) or payload["exp"] <= int(time.time()):
                 raise ValueError("Expired token!.")
             for claim in ("sub", "jti", "role"):
                 if claim not in payload:
                     raise ValueError(f"Missing claim {claim}.")
             return payload
+        
         except (ValueError, TypeError, KeyError, json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise ValueError("Invalid JWT!") from exc
 
 
     def verify_password(self, password: str, stored_hash) -> bool:
-        """The database stores a bcrypt hash, never the plain-text password."""
+        """The database stores a bcrypt hash, compare the raw password with the encrypted one."""
         if not stored_hash:
             return False
         if isinstance(stored_hash, str):
@@ -106,3 +132,10 @@ class TokenManager:
             return bcrypt.checkpw(password.encode("utf-8"), stored_hash)
         except (ValueError, TypeError):
             return False
+
+    def hash_password(self, password:str) -> str:
+        """Hash a password using bcrypt"""  
+
+        salt = bcrypt.gensalt()
+        password_hash = bcrypt.hashpw(password.encode("utf-8"), salt)
+        return password_hash.decode("utf-8")

@@ -1,9 +1,9 @@
 syntax = "proto3";
 
-
 enum Role {
-    ROLE_ADMIN = 0;
-    ROLE_MAINTAINER = 1;
+    unknown = 0;
+    administrator = 1;
+    maintainer = 2;
 }
 
 message LoginRequest {
@@ -28,7 +28,8 @@ message ValidationRequest {
 
 message ValidationTokenResponse {
     bool valid = 1;
-    UserInfo user = 2;
+    string id = 2;
+    Role role = 3;
 }
 
 message ListAccountsRequest {

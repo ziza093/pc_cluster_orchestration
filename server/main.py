@@ -1,9 +1,10 @@
 import grpc
-from concurrent import futures
-from proto import main_pb2
-from proto import main_pb2_grpc
 import logging
 import uuid
+
+from proto import main_pb2
+from concurrent import futures
+from proto import main_pb2_grpc
 from services.servicer import IdmServicer
 from services import tokens 
 
@@ -17,9 +18,25 @@ class LoginService(main_pb2_grpc.LoginServicer):
     def ListAccounts(self, request, context):
          return self.idmServicer.listAccounts(request, context)
 
+    def CreateAccount(self, request, context):
+         return self.idmServicer.createAccount(request, context)
+
+    def DeactivateAccount(self, request, context):
+         return self.idmServicer.deactivateAccount(request, context)
+
+    def ActivateAccount(self, request, context):
+         return self.idmServicer.activateAccount(request, context)
+
+    def ValidateToken(self, request, context):
+         return self.idmServicer.validateToken(request, context)
+
+    def DestroyToken(self, request, context):
+         return self.idmServicer.destroyToken(request, context)
+
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=3))
     main_pb2_grpc.add_LoginServicer_to_server(LoginService(), server)
+
     server.add_insecure_port("[::]:50051")
     server.start()
     print("Server started!")
