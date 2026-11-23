@@ -1,103 +1,68 @@
 package pos.proiect.api_rest_service.computer;
 
 import java.util.List;
+import java.util.ArrayList;
 
-//all these comments are because my clumsy brain can't get over the fact i didnt know how to create a ObjectId type var...
-//at first create a simple h2database, than move to mongodb
+import org.bson.types.ObjectId;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
-// import org.bson.types.ObjectId;
-// import org.springframework.data.annotation.Id;
-// import org.springframework.data.mongodb.core.mapping.Document;
-
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-
-// @Document(collection = "computers")
-@Entity
+@Document(collection = "computers")
 class Computer{
 
-    // @Id
-    // private ObjectId id;
-    private @Id
-    @GeneratedValue Long id;
+    @Id
+    private ObjectId id;
+    
+    @Indexed(unique = true)
+    @Field("IP")
     private String ip;
+
+    @Indexed(unique = true, sparse = true)
+    @Field("hostname")
     private String hostname;
-    // private List<ObjectId> idScript;
-    // private List<ObjectId> idUser;
-    private List<String> idScript;
-    private List<String> idUser;
+
+    @Field("id_scripts")
+    private List<ObjectId> idScripts = new ArrayList<>();
+    
+    @Field("id_users")
+    private List<ObjectId> idUsers = new ArrayList<>();
 
     Computer() {}
 
     Computer(String ip, String hostname){
         this.ip = ip;
         this.hostname = hostname;
+        this.idScripts = new ArrayList<>();
+        this.idUsers = new ArrayList<>();
     }
 
-    // public ObjectId getId(){
-    //     return this.id;
-    // }
-    public Long getId(){
-        return this.id;
-    }
+    public ObjectId getId(){ return this.id; }
+    public void setId(ObjectId id){ this.id = id; }
 
-    public String getIp(){
-        return this.ip;
-    }
+    public String getIp(){ return this.ip; }
+    public void setIp(String ip){ this.ip = ip; }
 
-    public String getHostname(){
-        return this.hostname;
-    }
+    public String getHostname(){ return this.hostname; }
+    public void setHostname(String hostname){ this.hostname = hostname; }
+    
+    public List<ObjectId> getIdScripts(){ return this.idScripts; }
+    public void setIdScript(List<ObjectId> idScripts){ this.idScripts = idScripts; }
 
-    // public List<ObjectId> getIdScript(){
-    //     return this.idScript;
-    // }
+    public List<ObjectId> getIdUsers(){ return this.idUsers; }
+    public void setIdUser(List<ObjectId> idUsers){ this.idUsers = idUsers; }
 
-    // public List<ObjectId> getIdUser(){
-    //     return this.idUser;
-    // }
-     
-    public List<String> getIdScript(){
-        return this.idScript;
-    }
+    public void addScript(ObjectId scriptId) { this.idScripts.add(scriptId); }
+    public void removeScript(ObjectId scriptId) { this.idScripts.remove(scriptId); }
 
-    public List<String> getIdUser(){
-        return this.idUser;
-    }
+    public void addUser(ObjectId userId) { this.idUsers.add(userId); }
+    public void removeUser(Object userId) { this.idUsers.remove(userId); }
 
-    // public void setId(ObjectId id){
-    //     this.id = id;
-    // }
-    public void setId(Long id){
-        this.id = id;
-    }
 
-    public void setIp(String ip){
-        this.ip = ip;
-    }
-
-    public void setHostname(String hostname){
-        this.hostname = hostname;
-    }
-
-    // public void setIdScript(ObjectId idScript){
-    //     this.idScript.add(idScript);
-    // }
-
-    // public void setIdUser(ObjectId idUser){
-    //     this.idUser.add(idUser);
-    // }
-    public void setIdScript(String idScript){
-        this.idScript.add(idScript);
-    }
-
-    public void setIdUser(String idUser){
-        this.idUser.add(idUser);
-    }
     
     @Override
     public String toString(){
-        return "Computer [id=" + id + ", ip=" + ip + ", hostname=" + hostname + ", scripts=" + idScript + ", users=" + idUser;
+        return "Computer [id=" + id + ", ip=" + ip + ", hostname=" + hostname + ", scripts=" + idScripts + ", users=" + idUsers;
     }
 }

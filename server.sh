@@ -78,7 +78,7 @@ create_redis_docker_container() {
     sudo docker run -d \
         --name redis-server \
         --restart unless-stopped \        
-        -p 127.0.0.1:6379:6379 \
+        -p 127.0.0.1:"$REDIS_PORT":6379 \
         -v redis_data:/var/lib/mysql \
         redis:latest \
         redis-server --appendonly yes

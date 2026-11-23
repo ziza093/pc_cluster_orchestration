@@ -24,8 +24,28 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
 
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo-server
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_DB_NAME: ${MONGO_DB_NAME}
+      MONGO_USERADMIN_PASSWORD: ${MONGO_USERADMIN_PASSWORD}
+      MONGO_OWNER_PASSWORD: ${MONGO_OWNER_PASSWORD}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD}
+    ports:
+      - "127.0.0.1:${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ${MONGO_INIT_SCRIPT_PATH}:/docker-entrypoint-initdb.d/init-users.js:ro
+
 volumes:
   mariadb_data:
     external: true
   redis_data:
+    external: true
+  mongodb_data:
     external: true

@@ -1,5 +1,6 @@
 bcrypt==5.0.0
-grpcio==1.84.0
+grpcio==1.85.1
+grpcio-reflection==1.85.1
 grpcio-tools==1.84.0
 iniconfig==2.3.1
 mysql-connector-python==26.10.0
