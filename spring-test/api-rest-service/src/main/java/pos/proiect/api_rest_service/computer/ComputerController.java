@@ -17,7 +17,7 @@ class ComputerController {
     
     ComputerController(ComputerRepository repository){
         this.repository = repository;
-    }
+    }   
 
     //Agregate root
     //tag::get-aggregate-root[]
@@ -34,26 +34,26 @@ class ComputerController {
 
     //Single item
 
-    @GetMapping("/computers/{id}")
-    Computer one(@PathVariable Long id){
-        return repository.findById(id).orElseThrow(() -> new ComputerNotFoundException(id));
-    }
+    // @GetMapping("/computers/{id}")
+    // Computer one(@PathVariable Long id){
+    //     return repository.findById(id).orElseThrow(() -> new ApiExceptionHandler(id));
+    // }
 
-    @PutMapping("/computers/{id}")
-    Computer replaceComputer(@RequestBody Computer newComputer, @PathVariable Long id){
-        return repository.findById(id).map(computer -> {
-            computer.setIp(newComputer.getIp());
-            computer.setHostname(newComputer.getHostname());
-            return repository.save(computer);
-        })
-        .orElseGet(() -> {
-            return repository.save(newComputer);
-        });
-    }
+    // @PutMapping("/computers/{id}")
+    // Computer replaceComputer(@RequestBody Computer newComputer, @PathVariable Long id){
+    //     return repository.findById(id).map(computer -> {
+    //         computer.setIp(newComputer.getIp());
+    //         computer.setHostname(newComputer.getHostname());
+    //         return repository.save(computer);
+    //     })
+    //     .orElseGet(() -> {
+    //         return repository.save(newComputer);
+    //     });
+    // }
 
-    @DeleteMapping("/computers/{id}")
-    void deleteComputer(@PathVariable Long id){
-        repository.deleteById(id);
-    }
+    // @DeleteMapping("/computers/{id}")
+    // void deleteComputer(@PathVariable Long id){
+    //     repository.deleteById(id);
+    // }
 
 }

@@ -8,12 +8,15 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.mongodb.core.mapping.FieldType;
+import org.springframework.data.mongodb.core.mapping.MongoId;
 
 @Document(collection = "computers")
 class Computer{
 
     @Id
-    private ObjectId id;
+    @MongoId(FieldType.OBJECT_ID)
+    private String id;
     
     @Indexed(unique = true)
     @Field("IP")
