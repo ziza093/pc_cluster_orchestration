@@ -1,69 +1,65 @@
 package pos.proiect.api_rest_service.computer;
 
-import java.util.List;
+import org.springframework.hateoas.EntityModel;
 
-// import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-// import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-// import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+import pos.proiect.api_rest_service.errors.ResourceNotFoundException;
+import pos.proiect.api_rest_service.computer.dto.ComputerResponse;
+import pos.proiect.api_rest_service.computer.dto.ComputerRequest;
+
+
 
 @RestController
+@RequestMapping("/api/manager/computers")
 class ComputerController {
-    private final ComputerRepository repository;
-    
-    ComputerController(ComputerRepository repository){
-        this.repository = repository;
+    private final ComputerModelAssembler assembler;
+    private final ComputerService service;
+
+    ComputerController(ComputerService service, ComputerModelAssembler assembler){
+        this.service = service;
+        this.assembler = assembler;
     }   
 
-    //Agregate root
-    //tag::get-aggregate-root[]
-    @GetMapping("/api/manager/computers")
-    List<Computer> all(){
-        return repository.findAll();
-    }
-    //end::get-aggregate-root[]he name RFC 9110 uses and your lab text matches. Use whichever your version offers, and if neither compiles, HttpStatus.valueOf(422) works.
+    //maintainer
+    // @GetMapping
+    // List<Computer> all(){
+    //     return assembler.toModel(service.findAll());
+    // }
 
-    @PostMapping("/computers")
-    Computer newComputer(@RequestBody Computer newComputer){
-        return repository.save(newComputer);
-    }
-
-
-    //TODO: pt model assembler
-    @PostMapping("/{id")
-    public String getComputerById(@RequestBody String entity) {
-        //TODO: process POST request
-        
-        return entity;
+    @GetMapping("/{id}")
+    public EntityModel<ComputerResponse> getComputerById(@RequestParam String id) {
+        return assembler.toModel(service.get(id));
     }
     
 
-    //Single item
+    //only admin users
+    @PostMapping
+    public EntityModel<ComputerResponse> newComputer(@Valid @RequestBody ComputerRequest newComputer){
+        return assembler.toModel(service.create(newComputer));
+    }
 
-    // @GetMapping("/computers/{id}")
-    // Computer one(@PathVariable Long id){
-    //     return repository.findById(id).orElseThrow(() -> new ApiExceptionHandler(id));
-    // }
-
-    // @PutMapping("/computers/{id}")
-    // Computer replaceComputer(@RequestBody Computer newComputer, @PathVariable Long id){
+    //only admin users can edit computers
+    // @PutMapping("/api/manager/computers/{id}")
+    // Computer replaceComputer(@RequestBody Computer newComputer, String id){
     //     return repository.findById(id).map(computer -> {
     //         computer.setIp(newComputer.getIp());
     //         computer.setHostname(newComputer.getHostname());
     //         return repository.save(computer);
-    //     })
-    //     .orElseGet(() -> {
+    //     }).orElseGet( () -> {
     //         return repository.save(newComputer);
-    //     });
-    // }
-
-    // @DeleteMapping("/computers/{id}")
-    // void deleteComputer(@PathVariable Long id){
-    //     repository.deleteById(id);
+    //     });//idk
     // }
 
 }

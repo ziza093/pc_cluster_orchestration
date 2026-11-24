@@ -27,7 +27,7 @@ services:
 
   mongo:
     image: mongo:latest
-    container_name: mongo-server
+    container_name: mongodb-server
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}

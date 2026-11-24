@@ -4,6 +4,11 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import org.bson.types.ObjectId;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import pos.proiect.api_rest_service.computer.dto.ComputerRequest;
 import pos.proiect.api_rest_service.errors.ResourceNotFoundException;
 
@@ -18,12 +23,19 @@ public class ComputerService {
     
 
     public Computer get(String id){
+        if(!ObjectId.isValid(id)){
+            throw new ResourceNotFoundException("Computer", id);
+        }
         return repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Computer", id));
     }
 
     public List<Computer> findAll(){
         return repository.findAll();
+    }
+
+    public Page<Computer> findAll(Pageable pageable){
+        return repository.findAll(pageable);
     }
 
     public Computer create(ComputerRequest req){
