@@ -59,8 +59,14 @@ class ComputerController {
 
     //only admin users can edit computers
     @PutMapping("/{id}")
-    public ResponseEntity<EntityModel<ComputerResponse>> replaceComputer(@Valid @PathVariable String id, @Valid @RequestBody ComputerRequest request){
+    public ResponseEntity<EntityModel<ComputerResponse>> replaceComputer(@PathVariable String id, @Valid @RequestBody ComputerRequest request){
         service.update(id, request);
         return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<EntityModel<ComputerResponse>> deleteComputer(@PathVariable String id){
+        service.delete(id);
+        return ResponseEntity.ok().build();
     }
 }

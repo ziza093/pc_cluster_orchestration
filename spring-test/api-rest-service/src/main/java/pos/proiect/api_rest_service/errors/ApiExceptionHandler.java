@@ -17,6 +17,11 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestControllerAdvice
 public class ApiExceptionHandler{
 
+  private ResponseEntity<ErrorResponse> build(HttpStatus status, String message, Map<String, String> details, HttpServletRequest req) {
+    ErrorResponse body = new ErrorResponse(Instant.now(), status.value(), status.getReasonPhrase(), message, req.getRequestURI(), details);
+    return ResponseEntity.status(status).body(body);
+  }
+
   @ExceptionHandler(ResourceNotFoundException.class)
   public ResponseEntity<ErrorResponse> notFound(ResourceNotFoundException ex, HttpServletRequest req){
     return build(HttpStatus.NOT_FOUND, ex.getMessage(), null, req);
@@ -35,8 +40,4 @@ public class ApiExceptionHandler{
     return build(HttpStatus.CONFLICT, "ip or hostname already exists", null, req);
   }
 
-  private ResponseEntity<ErrorResponse> build(HttpStatus status, String message, Map<String, String> details, HttpServletRequest req) {
-    ErrorResponse body = new ErrorResponse(Instant.now(), status.value(), status.getReasonPhrase(), message, req.getRequestURI(), details);
-    return ResponseEntity.status(status).body(body);
-  }
 }
