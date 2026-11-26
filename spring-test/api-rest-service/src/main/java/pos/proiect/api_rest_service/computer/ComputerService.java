@@ -49,7 +49,7 @@ public class ComputerService {
         Computer computer = get(id);
         computer.setIp(req.ip());
         computer.setHostname(req.hostname());
-        return repository.save(computer);    
+        return repository.save(computer);
     }
 
     public void delete(String id){

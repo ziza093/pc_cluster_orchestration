@@ -1,6 +1,9 @@
 package pos.proiect.api_rest_service.computer;
 
 import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.IanaLinkRelations;
+
 
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,7 +22,7 @@ import pos.proiect.api_rest_service.errors.ResourceNotFoundException;
 import pos.proiect.api_rest_service.computer.dto.ComputerResponse;
 import pos.proiect.api_rest_service.computer.dto.ComputerRequest;
 
-
+import org.springframework.http.ResponseEntity;
 
 @RestController
 @RequestMapping("/api/manager/computers")
@@ -33,33 +36,31 @@ class ComputerController {
     }   
 
     //maintainer
-    // @GetMapping
-    // List<Computer> all(){
-    //     return assembler.toModel(service.findAll());
-    // }
+    @GetMapping
+    public CollectionModel<EntityModel<ComputerResponse>> getComputers() {
+        return assembler.toCollectionModel(service.findAll());
+    }
 
+    //maintainer
     @GetMapping("/{id}")
-    public EntityModel<ComputerResponse> getComputerById(@RequestParam String id) {
+    public EntityModel<ComputerResponse> getComputerById(@PathVariable String id){
         return assembler.toModel(service.get(id));
     }
     
 
     //only admin users
     @PostMapping
-    public EntityModel<ComputerResponse> newComputer(@Valid @RequestBody ComputerRequest newComputer){
-        return assembler.toModel(service.create(newComputer));
+    public ResponseEntity<EntityModel<ComputerResponse>> newComputer(@Valid @RequestBody ComputerRequest request){
+        EntityModel<ComputerResponse> model = assembler.toModel(service.create(request));
+        return ResponseEntity
+                .created(model.getRequiredLink(IanaLinkRelations.SELF).toUri())
+                .body(model);
     }
 
     //only admin users can edit computers
-    // @PutMapping("/api/manager/computers/{id}")
-    // Computer replaceComputer(@RequestBody Computer newComputer, String id){
-    //     return repository.findById(id).map(computer -> {
-    //         computer.setIp(newComputer.getIp());
-    //         computer.setHostname(newComputer.getHostname());
-    //         return repository.save(computer);
-    //     }).orElseGet( () -> {
-    //         return repository.save(newComputer);
-    //     });//idk
-    // }
-
+    @PutMapping("/{id}")
+    public ResponseEntity<EntityModel<ComputerResponse>> replaceComputer(@Valid @PathVariable String id, @Valid @RequestBody ComputerRequest request){
+        service.update(id, request);
+        return ResponseEntity.noContent().build();
+    }
 }

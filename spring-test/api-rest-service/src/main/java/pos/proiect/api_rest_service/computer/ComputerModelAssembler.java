@@ -21,7 +21,7 @@ public class ComputerModelAssembler implements RepresentationModelAssembler<Comp
             computer.getIp(),
             computer.getHostname(),
             computer.getIdScripts().stream().map(ObjectId::toHexString).toList(),
-            computer.getIdUsers().stream().map(ObjectId::toHexString).toList()
+            computer.getIdUsers().stream().map(ObjectId::toHexString).toList() //cred ca intra si el in hateos (un calculator nu cred ca ar trebui sa stie de users..)
         );
         return EntityModel.of(response,
             linkTo(methodOn(ComputerController.class).getComputerById(computer.getId())).withSelfRel(),
